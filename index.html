@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Vehicle Cybersecurity IDS</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+
+body{
+background:#0f172a;
+font-family:system-ui;
+margin:0;
+color:white;
+}
+
+header{
+background:#020617;
+padding:20px;
+font-size:22px;
+text-align:center;
+border-bottom:1px solid #1e293b;
+}
+
+.dashboard{
+display:grid;
+grid-template-columns: 1fr 1fr;
+grid-gap:20px;
+padding:20px;
+}
+
+.metrics{
+grid-column:1/3;
+display:grid;
+grid-template-columns:repeat(4,1fr);
+gap:15px;
+}
+
+.card{
+background:#1e293b;
+padding:20px;
+border-radius:10px;
+text-align:center;
+box-shadow:0 0 10px rgba(0,0,0,0.4);
+}
+
+.metric-value{
+font-size:28px;
+margin-top:10px;
+}
+
+.status-safe{
+color:#22c55e;
+font-weight:bold;
+}
+
+.status-alert{
+color:#ef4444;
+font-weight:bold;
+}
+
+.chart-card{
+background:#1e293b;
+padding:15px;
+border-radius:10px;
+}
+
+.logs{
+grid-column:1/3;
+background:#1e293b;
+padding:15px;
+border-radius:10px;
+max-height:300px;
+overflow:auto;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+}
+
+th,td{
+padding:8px;
+border-bottom:1px solid #334155;
+font-size:14px;
+text-align:center;
+}
+
+</style>
+</head>
+
+<body>
+
+<header>
+Vehicle Intrusion Detection Dashboard
+</header>
+
+<div class="dashboard">
+
+<div class="metrics">
+
+<div class="card">
+<div>Speed</div>
+<div id="speed" class="metric-value">0</div>
+</div>
+
+<div class="card">
+<div>Engine Temp</div>
+<div id="temp" class="metric-value">0</div>
+</div>
+
+<div class="card">
+<div>RPM</div>
+<div id="rpm" class="metric-value">0</div>
+</div>
+
+<div class="card">
+<div>Status</div>
+<div id="status" class="metric-value status-safe">SAFE</div>
+</div>
+
+</div>
+
+<div class="chart-card">
+<canvas id="speedChart"></canvas>
+</div>
+
+<div class="chart-card">
+<canvas id="tempChart"></canvas>
+</div>
+
+<div class="chart-card">
+<canvas id="rpmChart"></canvas>
+</div>
+
+<div class="chart-card">
+<canvas id="intrusionChart"></canvas>
+</div>
+
+<div class="logs">
+
+<h3>Intrusion Log</h3>
+
+<table>
+
+<thead>
+<tr>
+<th>Time</th>
+<th>Speed</th>
+<th>Temp</th>
+<th>RPM</th>
+<th>Intrusion</th>
+</tr>
+</thead>
+
+<tbody id="logBody"></tbody>
+
+</table>
+
+</div>
+
+</div>
+
+<script>
+
+function createChart(id,label){
+
+return new Chart(
+document.getElementById(id),
+{
+type:"line",
+data:{
+labels:[],
+datasets:[
+{
+label:label,
+data:[]
+}
+]
+}
+}
+)
+
+}
+
+const speedChart=createChart("speedChart","Speed")
+const tempChart=createChart("tempChart","Temperature")
+const rpmChart=createChart("rpmChart","RPM")
+const intrusionChart=createChart("intrusionChart","Intrusion Events")
+
+function updateCharts(chart,value){
+
+chart.data.labels.push("")
+chart.data.datasets[0].data.push(value)
+
+if(chart.data.labels.length>25){
+
+chart.data.labels.shift()
+chart.data.datasets[0].data.shift()
+
+}
+
+chart.update()
+
+}
+
+function updateData(){
+
+fetch("/data")
+.then(r=>r.json())
+.then(d=>{
+
+document.getElementById("speed").innerText=d.speed
+document.getElementById("temp").innerText=d.engine_temp
+document.getElementById("rpm").innerText=d.rpm
+
+if(d.intrusion){
+
+document.getElementById("status").innerText="INTRUSION"
+document.getElementById("status").className="metric-value status-alert"
+updateCharts(intrusionChart,1)
+
+}
+else{
+
+document.getElementById("status").innerText="SAFE"
+document.getElementById("status").className="metric-value status-safe"
+updateCharts(intrusionChart,0)
+
+}
+
+updateCharts(speedChart,d.speed)
+updateCharts(tempChart,d.engine_temp)
+updateCharts(rpmChart,d.rpm)
+
+})
+
+}
+
+function updateLogs(){
+
+fetch("/logs")
+.then(r=>r.json())
+.then(logs=>{
+
+let body=document.getElementById("logBody")
+body.innerHTML=""
+
+logs.reverse().forEach(l=>{
+
+let row=document.createElement("tr")
+
+row.innerHTML=
+"<td>"+l.time+"</td>"+
+"<td>"+l.speed+"</td>"+
+"<td>"+l.engine_temp+"</td>"+
+"<td>"+l.rpm+"</td>"+
+"<td>"+l.intrusion+"</td>"
+
+body.appendChild(row)
+
+})
+
+})
+
+}
+
+setInterval(updateData,2000)
+setInterval(updateLogs,4000)
+
+</script>
+
+</body>
+</html>
